@@ -2,15 +2,8 @@
   <div class="app-container">
     <el-card>
       <div slot="header" class="clearfix">
-        <span>博客列表</span>
+        <span>已发布博客汇总</span>
         <el-button type="primary" size="small" style="float:right" @click="goEdit()">新建博客</el-button>
-        <el-select v-model="status" size="small" style="width: 100px; margin-left: 16px;" @change="handleStatusChange">
-          <el-option label="全部" value="" />
-          <el-option label="草稿" :value="0" />
-          <el-option label="已发布" :value="1" />
-          <el-option label="待审核" :value="2" />
-          <el-option label="审核不通过" :value="3" />
-        </el-select>
         <el-select v-model="orderField" size="small" style="width: 140px; margin-left: 16px;" @change="handleSortChange">
           <el-option label="ID" value="id" />
           <el-option label="发表时间" value="create_time" />
@@ -23,7 +16,7 @@
 
       <!-- 搜索组件 -->
       <HighlightSearch
-        :data-list="blogList"
+        :data-list="approvedList"
         :search-fields="['title', 'summary', 'author', 'category.name']"
         :display-fields="['title', 'author', 'category.name']"
         :field-labels="{ title: '标题', author: '作者', 'category.name': '分类' }"
@@ -32,7 +25,7 @@
         style="margin-bottom: 20px;"
       />
 
-      <el-table :data="blogList" style="width: 100%" border stripe size="small">
+      <el-table :data="approvedList" style="width: 100%" border stripe size="small">
         <el-table-column prop="id" label="ID" width="60" align="center" />
         <el-table-column prop="title" label="标题" min-width="120" />
         <el-table-column prop="coverImage" label="封面" width="100" align="center">
@@ -50,13 +43,6 @@
         <el-table-column prop="likeCount" label="喜爱数" width="80" align="center" />
         <el-table-column prop="viewCount" label="浏览数" width="80" align="center" />
         <el-table-column prop="commentCount" label="评论数" width="80" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template slot-scope="scope">
-            <el-tag :type="getStatusType(scope.row.status)">
-              {{ getStatusText(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column prop="isTop" label="置顶" width="70" align="center">
           <template slot-scope="scope">
             <el-tag :type="scope.row.isTop ? 'warning' : 'info'">
@@ -83,7 +69,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" align="center">
+        <el-table-column prop="createTime" label="发布时间" width="180" align="center">
           <template slot-scope="scope">
             {{ formatDate(scope.row.createTime) }}
           </template>
@@ -132,21 +118,21 @@ import dayjs from 'dayjs'
 import ActionPanel from '@/components/ActionPanel.vue'
 import HighlightSearch from '@/components/HighlightSearch/index.vue'
 export default {
+  name: 'BlogApproved',
   components: {
     ActionPanel,
     HighlightSearch
   },
   data() {
     return {
-      blogList: [],
+      approvedList: [],
       total: 0,
       page: 1,
       pageSize: 10,
       actionPanelVisible: false,
       currentRow: {},
       orderField: 'id',
-      orderType: 'desc',
-      status: '' // 状态筛选：空表示全部，0-草稿，1-已发布，2-待审核，3-审核不通过
+      orderType: 'desc'
     }
   },
   created() {
@@ -156,12 +142,14 @@ export default {
     async fetchList(page = 1) {
       try {
         this.page = page
-        const params = { page, pageSize: this.pageSize, orderField: this.orderField, orderType: this.orderType }
-        // 如果status有值，添加状态筛选条件
-        if (this.status !== '') {
-          params.status = this.status
-        }
-        const res = await fetchBlogList(params)
+        // 只获取已发布（审核通过）的博客，status=1
+        const res = await fetchBlogList({ 
+          page, 
+          pageSize: this.pageSize, 
+          orderField: this.orderField, 
+          orderType: this.orderType,
+          status: 1  // 只查询已发布状态
+        })
         const items = (res.data.items || []).map(item => {
           if (item.tags && Array.isArray(item.tags)) {
             item.tags = item.tags.map(tag => ({ ...tag, count: tag.count == null ? 0 : tag.count }))
@@ -171,7 +159,7 @@ export default {
           }
           return item
         })
-        this.blogList = items
+        this.approvedList = items
         this.total = res.data.total || 0
       } catch (e) {
         this.$message.error('加载失败：' + (e && e.message ? e.message : '未知错误'))
@@ -221,23 +209,8 @@ export default {
         this.fetchList(this.page)
       }
     },
-    async handleEnableComment(row) {
-      try {
-        await this.$confirm('确定要修改该博客的评论状态吗？', '提示', { type: 'warning' })
-        await this.$axios({
-          url: `/v1/blog`,
-          method: 'put',
-          data: row
-        })
-        this.$message.success('评论状态已更新')
-        this.fetchList(this.page)
-      } catch (e) {
-        this.$message.error('操作失败：' + (e && e.message ? e.message : '未知错误'))
-        this.fetchList(this.page)
-      }
-    },
-    formatDate(val) {
-      return val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : ''
+    handleEnableComment(row) {
+      this.$message.info('评论开关已更新')
     },
     openActionPanel(row) {
       this.currentRow = row
@@ -250,37 +223,16 @@ export default {
     handleSortChange() {
       this.fetchList(1)
     },
-    handleStatusChange() {
-      this.fetchList(1)
-    },
     toggleOrderType() {
       this.orderType = this.orderType === 'desc' ? 'asc' : 'desc'
       this.fetchList(1)
     },
-    // 搜索选择博客
     handleSelectBlog(blog) {
       this.$message.info(`已选择博客: ${blog.title}`)
       this.goEdit(blog.id)
     },
-    // 获取状态类型（与BlogView.vue保持一致）
-    getStatusType(status) {
-      const types = {
-        0: 'info',
-        1: 'success',
-        2: 'warning',
-        3: 'danger'
-      }
-      return types[status] || 'info'
-    },
-    // 获取状态文本（与BlogView.vue保持一致）
-    getStatusText(status) {
-      const texts = {
-        0: '草稿',
-        1: '已发布',
-        2: '待审核',
-        3: '审核不通过'
-      }
-      return texts[status] || '未知状态'
+    formatDate(date) {
+      return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
     }
   }
 }

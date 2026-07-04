@@ -2,72 +2,138 @@
 /*
 import { getRoutes } from '@/api/modules/route'
 */
+/**
+ * ============================================
+ * 【权限控制模块】前端权限状态管理
+ * ============================================
+ * 
+ * 该模块负责管理前端权限相关的状态和操作，包括：
+ * 1. 路由权限过滤：根据用户权限过滤可访问的路由
+ * 2. 动态路由生成：根据角色和权限动态添加路由
+ * 3. 权限状态管理：维护已生成的路由列表
+ * 
+ * 权限匹配策略：
+ * - 精确匹配：检查用户是否有完全匹配的权限
+ * - 通配符匹配：支持 '*' 超级管理员和 'module:*' 模块级权限
+ * - 角色匹配：支持基于角色的访问控制
+ * 
+ * @author security-module
+ */
+
 import { asyncRoutes, constantRoutes } from '@/router'
 // 移除未使用的导入
 // import { getUserRoutes } from '@/api/modules/user'
 
 /**
- * Use meta.role to determine if the current user has permission
- * @param userRoles
- * @param userPerms
- * @param route
+ * 判断用户是否拥有该权限
+ * 
+ * 权限判断逻辑：
+ * 1. 如果路由没有设置权限要求（meta.permission为空），默认允许访问
+ * 2. 检查用户是否为超级管理员（拥有 '*' 权限）
+ * 3. 检查是否有精确匹配的权限
+ * 4. 检查是否有模块级通配符权限（如 'manage:*'）
  */
-function hasPermission(userRoles, userPerms, route) {
-  if (route.meta) {
-    // 检查角色权限
-    if (route.meta.roles && !route.meta.roles.some(r => userRoles.includes(r))) {
-      return false
+const hasPermission = {
+  // 判断用户是否拥有指定权限，支持通配符
+  check(permissions, route) {
+    if (!permissions || !route.meta || !route.meta.permissions) {
+      return true
     }
-
-    // 检查权限，并支持通配符匹配
-    if (route.meta.perms) {
-      const hasAnyPerm = route.meta.perms.some(perm => {
-        // 1. 精确匹配
-        if (userPerms.includes(perm)) {
-          return true
-        }
-
-        // 2. 通配符匹配（例如 access:user 匹配 access:user:*）
-        // 检查用户是否有包含当前权限的更高级权限
-        return userPerms.some(userPerm => {
-          // 例如：如果用户有权限 access:user，那么匹配 access:user:*
-          if (perm.endsWith(':*') && userPerm === perm.slice(0, -2)) {
-            return true
-          }
-          // 例如：如果用户有权限 access:*,那么匹配所有 access:开头的权限
-          if (userPerm.endsWith(':*') && perm.startsWith(userPerm.slice(0, -1))) {
-            return true
-          }
-          return false
-        })
-      })
-
-      if (!hasAnyPerm) {
-        return false
+    
+    // 路由权限要求列表
+    const routePermissions = route.meta.permissions
+    
+    // 检查用户是否满足路由的所有权限要求（满足任意一个即可）
+    return routePermissions.some(routePerm => {
+      // 精确匹配：用户权限中是否有完全匹配的权限
+      if (permissions.includes(routePerm)) {
+        return true
       }
+      
+      // 超级管理员权限 '*'
+      if (permissions.includes('*')) {
+        return true
+      }
+      
+      // 模块级通配符匹配：检查用户是否有模块级权限
+      return permissions.some(userPerm => {
+        if (userPerm.endsWith(':*')) {
+          const module = userPerm.slice(0, -2)
+          return routePerm.startsWith(`${module}:`)
+        }
+        return false
+      })
+    })
+  },
+  
+  // 过滤路由
+  filterAsyncRoutes(routes, permissions) {
+    const res = []
+    
+    // 确保路由是数组
+    if (!Array.isArray(routes)) {
+      console.warn('Routes parameter is not an array')
+      return res
     }
+    
+    routes.forEach(route => {
+      const tmp = { ...route }
+      
+      // 检查当前路由是否有权限
+      if (this.check(permissions, tmp)) {
+        // 处理子路由
+        if (tmp.children && Array.isArray(tmp.children)) {
+          const filteredChildren = this.filterAsyncRoutes(tmp.children, permissions)
+          
+          // 如果有子路由或当前路由有组件，则保留
+          if (filteredChildren.length > 0 || tmp.component) {
+            tmp.children = filteredChildren
+            res.push(tmp)
+          }
+        } else if (tmp.component) {
+          // 如果没有子路由但有组件，保留该路由
+          res.push(tmp)
+        }
+      }
+    })
+    
+    return res
+  },
+  
+  // 获取用户可以访问的所有路由键值
+  getAccessibleKeys(routes, permissions) {
+    const keys = []
+    
+    if (!Array.isArray(routes)) {
+      return keys
+    }
+    
+    routes.forEach(route => {
+      if (this.check(permissions, route)) {
+        if (route.name) {
+          keys.push(route.name)
+        }
+        if (route.children && Array.isArray(route.children)) {
+          keys.push(...this.getAccessibleKeys(route.children, permissions))
+        }
+      }
+    })
+    return keys
   }
-  return true
 }
 
 /**
  * Filter asynchronous routing tables by recursion
  * @param routes asyncRoutes
- * @param userRoles
- * @param userPerms
+ * @param userPerms - 用户权限列表（不再使用角色）
  */
-export function filterAsyncRoutes(routes, userRoles, userPerms) {
-  const res = []
-  routes.forEach(route => {
-    const tmp = { ...route }
-    if (hasPermission(userRoles, userPerms, tmp)) {
-      if (tmp.children) {
-        tmp.children = filterAsyncRoutes(tmp.children, userRoles, userPerms)
-      }
-      res.push(tmp)
-    }
-  })
-  return res
+export function filterAsyncRoutes(routes = [], userPerms = []) {
+  // 确保参数类型正确
+  const safeRoutes = Array.isArray(routes) ? routes : []
+  const permissions = Array.isArray(userPerms) ? userPerms : []
+  
+  // 使用增强的hasPermission对象进行路由过滤
+  return hasPermission.filterAsyncRoutes(safeRoutes, permissions)
 }
 
 const state = {
@@ -88,51 +154,53 @@ const mutations = {
 }
 
 const actions = {
-  // 根据用户角色和权限生成可访问路由
+  // 根据用户权限生成可访问路由（仅使用权限，不再使用角色）
   generateRoutes({ commit, state }, payload) {
     // 添加参数验证
-    if (!payload || !payload.roles) {
-      // console.error('generateRoutes 参数错误:', payload);
-      return Promise.reject(' roles 参数不能为空')
+    if (!payload) {
+      console.error('generateRoutes 参数错误: payload 不能为空')
+      return Promise.reject('参数不能为空')
     }
-    const { roles, perms = [] } = payload
+    
+    // 确保 perms 是数组（不再处理roles）
+    const perms = Array.isArray(payload.perms) ? payload.perms : []
+    
+    console.log('generateRoutes接收到的权限:', { perms })
 
-    // 如果已经尝试加载过路由，直接resolve空数组，避免重复请求
+    // 如果已经尝试加载过路由，重置状态允许重新加载
     if (state.routesLoaded) {
-      // console.log('路由已尝试加载，避免重复请求');
-      return Promise.resolve([])
+      console.log('路由已尝试加载，将重置状态重新加载')
+      commit('SET_ROUTES_LOADED', false)
     }
 
     return new Promise((resolve) => {
-      // 标记路由开始加载
-      commit('SET_ROUTES_LOADED', true)
+      try {
+        // 标记路由开始加载
+        commit('SET_ROUTES_LOADED', true)
 
-      // 从后端获取路由
-      // 暂时注释掉后端路由获取，后期会开发由后端控制路由的业务
-      /* getUserRoutes().then(response => {
-        console.log('获取后端路由响应:', response)
-        const data = response.data
-        console.log('后端路由数据:', data)
-        // 对data进行处理
-        if (data && data.length > 0) {
-          // 格式化后端返回的路由数据
-          const formattedRoutes = formatAsyncRoutes(data)
-          // 使用用户角色和权限过滤路由
-          const accessedRoutes = filterAsyncRoutes(formattedRoutes, roles, perms)
-          commit('SET_ROUTES', accessedRoutes)
-          resolve(accessedRoutes)
-        } else {
-          // 如果后端没有返回路由或返回空数组，则使用本地路由
-          const accessedRoutes = filterAsyncRoutes(asyncRoutes, roles, perms)
-          commit('SET_ROUTES', accessedRoutes)
-          resolve(accessedRoutes)
+        // 直接使用本地路由，仅使用权限过滤
+        console.log('开始过滤本地路由')
+        const accessedRoutes = filterAsyncRoutes(asyncRoutes, perms)
+        console.log('路由过滤完成，可用路由数量:', accessedRoutes.length)
+        
+        // 确保添加404页面到路由末尾
+        // 先检查是否已有404路由
+        const has404 = accessedRoutes.some(route => route.path === '*')
+        if (!has404) {
+          accessedRoutes.push({
+            path: '*',
+            redirect: '/404',
+            hidden: true
+          })
         }
- */
-
-      // 直接使用本地路由
-      const accessedRoutes = filterAsyncRoutes(asyncRoutes, roles, perms)
-      commit('SET_ROUTES', accessedRoutes)
-      resolve(accessedRoutes)
+        
+        commit('SET_ROUTES', accessedRoutes)
+        resolve(accessedRoutes)
+      } catch (error) {
+        console.error('路由过滤过程中发生错误:', error)
+        // 出错时返回空数组，避免程序崩溃
+        resolve([])
+      }
     })
   }
 }
@@ -168,7 +236,7 @@ const actions = {
 //   })
 // }
 
-// 移除未使用的函数
+
 // function loadView(view) {
 //   // 支持 Layout 特殊写法
 //   // if (view === 'Layout' || view === '@/layout' || view === '/layout' || view === 'layout') {

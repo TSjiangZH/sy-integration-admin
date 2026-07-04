@@ -3,7 +3,7 @@ import request from '@/utils/request'
 // 获取所有权限
 export function getPermissions() {
   return request({
-    url: '/v3/authority/list',
+    url: '/v3/permission/list',
     method: 'get'
   })
 }
@@ -11,7 +11,7 @@ export function getPermissions() {
 // 添加新权限
 export function addPermission(data) {
   return request({
-    url: '/v3/authority/add',
+    url: '/v3/permission/add',
     method: 'post',
     data
   })
@@ -20,7 +20,7 @@ export function addPermission(data) {
 // 更新权限
 export function updatePermission(id, data) {
   return request({
-    url: '/v3/authority/modify',
+    url: '/v3/permission/modify',
     method: 'put',
     data
   })
@@ -29,7 +29,7 @@ export function updatePermission(id, data) {
 // 删除权限
 export function deletePermission(id) {
   return request({
-    url: `/v3/authority/${id}`,
+    url: `/v3/permission/${id}`,
     method: 'delete'
   })
 }
@@ -37,7 +37,7 @@ export function deletePermission(id) {
 // 分配角色权限
 export function assignRolePermission(data) {
   return request({
-    url: '/v2/authority/role/assign-role-authority',
+    url: '/v2/role-permission/assign-role-permission',
     method: 'post',
     data
   })

@@ -1,3 +1,24 @@
+/**
+ * ============================================
+ * 【权限控制模块】前端路由配置
+ * ============================================
+ * 
+ * 该文件定义了系统的路由结构，分为两类路由：
+ * 1. constantRoutes - 公共路由，无需权限即可访问（如登录页、首页、错误页）
+ * 2. asyncRoutes - 动态路由，需要根据用户角色和权限动态加载
+ * 
+ * 路由权限配置说明：
+ * - meta.roles: 允许访问该路由的角色列表（如 ['admin', 'editor']）
+ * - meta.permission: 允许访问该路由的权限编码（如 'manage:user:list'）
+ * - hidden: 是否在侧边栏隐藏（true=隐藏）
+ * - alwaysShow: 是否始终显示根菜单
+ * 
+ * 权限控制流程：
+ * 路由定义 → 登录后获取用户权限 → 动态路由过滤 → 生成可访问路由 → 渲染侧边栏
+ * 
+ * @author security-module
+ */
+
 import Vue from 'vue'
 import Router from 'vue-router'
 
@@ -7,30 +28,27 @@ Vue.use(Router)
 import Layout from '@/layout'
 
 /**
- * Note: sub-menu only appear when route children.length >= 1
- * Detail see: https://panjiachen.github.io/vue-element-admin-site/guide/essentials/router-and-nav.html
- *
- * hidden: true                   if set true, item will not show in the sidebar(default is false)
- * alwaysShow: true               if set true, will always show the root menu
- *                                if not set alwaysShow, when item has more than one children route,
- *                                it will becomes nested mode, otherwise not show the root menu
- * redirect: noRedirect           if set noRedirect will no redirect in the breadcrumb
- * name:'router-name'             the name is used by <keep-alive> (must set!!!)
- * meta : {
-    roles: ['admin','editor']    control the page roles (you can set multiple roles)
-    title: 'title'               the name show in sidebar and breadcrumb (recommend set)
-    icon: 'svg-name'/'el-icon-x' the icon show in the sidebar
-    noCache: true                if set true, the page will no be cached(default is false)
-    affix: true                  if set true, the tag will affix in the tags-view
-    breadcrumb: false            if set false, the item will hidden in breadcrumb(default is true)
-    activeMenu: '/example/list'  if set path, the sidebar will highlight the path you set
-  }
+ * 路由配置参数说明：
+ * - hidden: true                   侧边栏不显示（默认false）
+ * - alwaysShow: true               始终显示根菜单（否则子路由>1时嵌套显示）
+ * - redirect: noRedirect           面包屑不重定向
+ * - name:'router-name'             <keep-alive>使用，必须设置
+ * - meta: {
+ *     roles: ['admin','editor']    【权限控制】允许访问的角色列表
+ *     title: 'title'               侧边栏和面包屑显示名称
+ *     icon: 'svg-name'/'el-icon-x' 侧边栏图标
+ *     noCache: true                不缓存页面（默认false）
+ *     affix: true                  固定在标签页
+ *     breadcrumb: false            面包屑隐藏（默认true）
+ *     activeMenu: '/example/list'  高亮侧边栏路径
+ *   }
  */
 
+import { Icons } from '@/router/icons'
+
 /**
- * constantRoutes
- * a base page that does not have permission requirements
- * all roles can be accessed
+ * constantRoutes - 公共路由
+ * 无需权限即可访问，所有角色都可以访问
  */
 export const constantRoutes = [
   {
@@ -42,7 +60,7 @@ export const constantRoutes = [
         path: 'dashboard',
         component: () => import('@/views/dashboard/index'),
         name: 'Dashboard',
-        meta: { title: '首页', icon: 'dashboard', affix: true }
+        meta: { title: '首页', icon: Icons.DASHBOARD, affix: true }
       }
     ]
   },
@@ -83,8 +101,7 @@ export const constantRoutes = [
 
 import errorLogRoutes from './modules/error-log'
 import userRoutes from './modules/user'
-import roleRoutes from './modules/role'
-import imageRoutes from './modules/image'
+import mediaRoutes from './modules/media'
 import blogRoutes from './modules/blog'
 import tagRoutes from './modules/tag'
 import categoryRoutes from './modules/category'
@@ -92,8 +109,7 @@ import permissionRoutes from './modules/permission'
 
 export const asyncRoutes = [
   ...userRoutes,
-  ...roleRoutes,
-  ...imageRoutes,
+  ...mediaRoutes,
   ...blogRoutes,
   ...tagRoutes,
   ...categoryRoutes,
@@ -107,6 +123,7 @@ export const asyncRoutes = [
 const createRouter = () => new Router({
   // mode: 'history', // require service support - 当前已注释，使用hash模式
   scrollBehavior: () => ({ y: 0 }),
+  // 只包含constantRoutes，asyncRoutes将在permission.js中根据用户权限动态添加
   routes: constantRoutes
 })
 

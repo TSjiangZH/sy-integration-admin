@@ -16,9 +16,9 @@ export function createRole(data) {
   })
 }
 
-export function updateRole(data) {
+export function updateRole(key, data) {
   return request({
-    url: '/v3/role/modify',
+    url: `/v3/role/modify/${key}`,
     method: 'put',
     data
   })
@@ -34,8 +34,16 @@ export function deleteRole(id) {
 // 分配角色权限
 export function assignRolePermission(data) {
   return request({
-    url: '/v2/system/role/assign-role-permission',
+    url: '/v2/role-permission/assign-role-permission',
     method: 'post',
     data
+  })
+}
+
+// 获取角色权限ID列表
+export function getRolePermissionIds(roleId) {
+  return request({
+    url: `/v2/role-permission/permission-ids/${roleId}`,
+    method: 'get'
   })
 }

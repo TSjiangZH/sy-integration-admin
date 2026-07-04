@@ -35,7 +35,7 @@
               </div>
               <div class="permission-item">
                 <span class="label">上级权限:</span>
-                <span class="value">{{ permission.parentCode || 'ROOT_AUTHORITY' }}</span>
+                <span class="value">{{ permission.parentCode || 'ROOT_PERMISSION' }}</span>
               </div>
               <div class="permission-item">
                 <span class="label">描述:</span>
@@ -71,7 +71,7 @@
                   </div>
                     <div class="permission-item">
                       <span class="label">上级权限:</span>
-                      <span class="value">{{ child.parentCode || 'ROOT_AUTHORITY' }}</span>
+                      <span class="value">{{ child.parentCode || 'ROOT_PERMISSION' }}</span>
                     </div>
                     <div class="permission-item">
                       <span class="label">描述:</span>

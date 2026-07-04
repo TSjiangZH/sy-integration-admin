@@ -1,60 +1,55 @@
 <template>
   <div class="dashboard-editor-container">
-    <!-- 数据总览卡片 -->
-    <el-row :gutter="24" class="overview-row">
-      <el-col :xs="12" :sm="8" :md="4" v-for="(item, idx) in overviewList" :key="idx">
-        <el-card class="stat-card">
-          <div class="stat-title">{{ item.title }}</div>
-          <div class="stat-num">{{ item.value }}</div>
+    <account-info-card :user-info="userInfo" :stats="accountStats" />
+    <!-- 面板组 (PanelGroup) - 接入 overviewList 数据源 -->
+    <panel-group :data="overviewList" @handleSetLineChartData="handleSetLineChartData" />
+    <!-- 快捷操作 (QuickActions) -->
+        <el-card title="快捷操作" style="margin-bottom: 20px;">
+      <quick-actions :actions="actionList" @action-click="handleActionClick" />
+    </el-card>
+    
+    <!-- 数据趋势图表 (TrendCharts) - 包含LineChart和PieChart -->
+    <trend-charts 
+      :line-chart-data="blogTrendData" 
+      :pie-chart-data="categoryPieData" 
+    />
+    
+    <!-- 条形图 (BarChart) -->
+    <el-row class="chart-row">
+      <el-col :xs="24" :lg="12">
+        <el-card title="页面访问量统计" class="chart-card">
+          <bar-chart className="bar-chart" />
         </el-card>
       </el-col>
+      
+
     </el-row>
 
-    <!-- 快捷操作 -->
-    <el-row class="quick-actions" justify="center" style="margin: 32px 0 24px 0;">
-      <el-button type="primary" icon="el-icon-edit" @click="goTo('BlogEdit')">新建博客</el-button>
-      <el-button icon="el-icon-document" @click="goTo('BlogList')">博客管理</el-button>
-      <el-button icon="el-icon-menu" @click="goTo('CategoryList')">分类管理</el-button>
-      <el-button icon="el-icon-collection" @click="goTo('TagManage')">标签管理</el-button>
-    </el-row>
-
-    <!-- 数据趋势图表 -->
-    <el-row :gutter="24" class="charts-row">
-      <el-col :xs="24" :md="12">
-        <el-card shadow="hover" class="chart-card">
-          <div class="chart-title">博客发布趋势</div>
-          <line-chart :chart-data="blogTrendData" />
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :md="12">
-        <el-card shadow="hover" class="chart-card">
-          <div class="chart-title">分类分布</div>
-          <pie-chart :chart-data="categoryPieData" />
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 最新博客 -->
-    <el-row class="latest-row" style="margin-top: 32px;">
+    
+    <!-- 最新博客和事务表格 -->
+    <el-row class="table-row">
       <el-col :xs="24" :md="16" :lg="12">
-        <el-card shadow="hover">
-          <div class="chart-title">最新博客</div>
-          <el-table :data="latestBlogs" size="mini" border>
-            <el-table-column prop="title" label="标题" align="center" />
-            <el-table-column prop="createTime" label="时间" :formatter="formatDate" align="center" />
-            <el-table-column prop="status" label="状态" align="center">
-              <template slot-scope="scope">
-                <el-tag :type="scope.row.status === 1 ? 'success' : 'info'">
-                  {{ scope.row.status === 1 ? '已发布' : '草稿' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" align="right" width="100">
-              <template slot-scope="scope">
-                <el-button size="mini" type="primary" @click="goToEdit(scope.row.id)">编辑</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+        <latest-blogs-table :blogs="latestBlogs" @edit="goToEdit" />
+      </el-col>
+      
+      <!-- 事务表格 (TransactionTable) -->
+      <el-col :xs="24" :md="8" :lg="12">
+        <el-card title="交易记录">
+          <transaction-table />
+        </el-card>
+      </el-col>
+    </el-row>
+    
+    <!-- BoxCard和TodoList -->
+    <el-row class="bottom-row">
+      
+      <el-col :xs="24" :lg="8">
+        <box-card />
+      </el-col>
+      
+      <el-col :xs="24" :lg="8">
+        <el-card title="待办事项">
+          <todo-list />
         </el-card>
       </el-col>
     </el-row>
@@ -62,19 +57,33 @@
 </template>
 
 <script>
-// 这里假设你有相关接口，实际可根据你的 api 路径调整
 import { fetchBlogList, fetchBlogStats, fetchBlogTrend } from '@/api/modules/blog'
 import { fetchCategoryCount, fetchCategoryDistribution } from '@/api/modules/category'
 import { fetchTagCount } from '@/api/modules/tag'
-import LineChart from './components/LineChart'
-import PieChart from './components/PieChart'
-import dayjs from 'dayjs'
+import QuickActions from './components/QuickActions'
+import TrendCharts from './components/TrendCharts'
+import LatestBlogsTable from './components/LatestBlogsTable'
+import BarChart from './components/BarChart'
+import RaddarChart from './components/RaddarChart'
+import PanelGroup from './components/PanelGroup'
+import TransactionTable from './components/TransactionTable'
+import BoxCard from './components/BoxCard'
+import TodoList from './components/TodoList'
+import AccountInfoCard from './components/AccountInfoCard'
 
 export default {
   name: 'DashboardAdmin',
   components: {
-    LineChart,
-    PieChart
+    QuickActions,
+    TrendCharts,
+    LatestBlogsTable,
+    BarChart,
+    RaddarChart,
+    PanelGroup,
+    TransactionTable,
+    BoxCard,
+    TodoList,
+    AccountInfoCard
   },
   data() {
     return {
@@ -85,23 +94,43 @@ export default {
         viewCount: 0,
         commentCount: 0
       },
-      blogTrendData: {
-        expectedData: [],
-        actualData: [],
-        xData: []
-      },
+      blogTrendData: { expectedData: [], actualData: [], xData: [] },
       categoryPieData: {},
-      latestBlogs: []
+      latestBlogs: [],
+      actionList: [
+        { label: '新建博客', name: 'BlogEdit', type: 'primary', icon: 'el-icon-edit' },
+        { label: '博客管理', name: 'BlogList', icon: 'el-icon-document' },
+        { label: '分类管理', name: 'CategoryList', icon: 'el-icon-menu' },
+        { label: '标签管理', name: 'TagManage', icon: 'el-icon-collection' }
+      ],
+      // 用户信息
+      userInfo: {
+        name: 'Admin',
+        avatar: '',
+        role: '超级管理员',
+        email: 'admin@example.com',
+        phone: '138****8888',
+        status: 'online',
+        joinDate: '2024-01-01'
+      },
+      
     }
   },
   computed: {
     overviewList() {
       return [
-        { title: '博客总数', value: this.stats.blogCount },
-        { title: '分类总数', value: this.stats.categoryCount },
-        { title: '标签总数', value: this.stats.tagCount },
-        { title: '总浏览量', value: this.stats.viewCount },
-        { title: '总评论数', value: this.stats.commentCount }
+        { title: '博客总数', value: this.stats.blogCount, icon: 'el-icon-document', type: 'blog' },
+        { title: '分类总数', value: this.stats.categoryCount, icon: 'list', type: 'category' },
+        { title: '标签总数', value: this.stats.tagCount, icon: 'tags', type: 'tag' },
+        { title: '总浏览量', value: this.stats.viewCount, icon: 'eye', type: 'view' },
+        { title: '总评论数', value: this.stats.commentCount, icon: 'message', type: 'comment' }
+      ]
+    },
+    accountStats() {
+      return [
+        { label: '博客数', value: this.stats.blogCount },
+        { label: '粉丝数', value: 128 },
+        { label: '获赞数', value: 356 }
       ]
     }
   },
@@ -113,22 +142,19 @@ export default {
   },
   methods: {
     async loadStats() {
-      // 博客总数、总浏览量、总评论数
       const blogStatsRes = await fetchBlogStats()
       this.stats.blogCount = blogStatsRes.data.blogCount || 0
       this.stats.viewCount = blogStatsRes.data.viewCount || 0
       this.stats.commentCount = blogStatsRes.data.commentCount || 0
-      // 分类总数
+      
       const categoryRes = await fetchCategoryCount()
       this.stats.categoryCount = categoryRes.data || 0
-      // 标签总数
+      
       const tagRes = await fetchTagCount()
       this.stats.tagCount = tagRes.data || 0
     },
     async loadTrend() {
-      // 博客发布趋势
       const res = await fetchBlogTrend({ days: 7 })
-      // 假设后端返回 [{date: '2024-06-01', count: 3}, ...]
       const xData = res.data.map(item => item.date)
       const yData = res.data.map(item => item.count)
       this.blogTrendData = {
@@ -138,28 +164,24 @@ export default {
       }
     },
     async loadPie() {
-      // 分类分布
       const res = await fetchCategoryDistribution()
-      // 假设后端返回 [{name: '前端', value: 10}, ...]
       this.categoryPieData = {
         legend: res.data.map(item => item.name),
         series: res.data
       }
     },
     async loadLatestBlogs() {
-      try {
-        const res = await fetchBlogList({ page: 1, pageSize: 5, orderField: 'create_time', orderType: 'desc' })
-        this.latestBlogs = res.data.items || []
-      } catch (e) {}
+      const res = await fetchBlogList({ page: 1, pageSize: 5, orderField: 'create_time', orderType: 'desc' })
+      this.latestBlogs = res.data.items || []
     },
-    goTo(name) {
-      this.$router.push({ name })
+    handleActionClick(action) {
+      this.$router.push({ name: action.name })
     },
     goToEdit(id) {
       this.$router.push({ name: 'BlogEdit', params: { id } })
     },
-    formatDate(row, column, cellValue) {
-      return cellValue && dayjs(cellValue).isValid() ? dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss') : ''
+    handleSetLineChartData(type) {
+      console.log('Line chart data type:', type)
     }
   }
 }
@@ -169,49 +191,21 @@ export default {
 .dashboard-editor-container {
   padding: 32px 16px;
   background: #f5f7fa;
+  min-height: 100vh;
 }
-.overview-row {
-  margin-bottom: 24px;
-}
-.stat-card {
-  text-align: center;
-  padding: 18px 0;
-  border-radius: 10px;
-  min-height: 100px;
-}
-.stat-title {
-  font-size: 16px;
-  color: #888;
-  margin-bottom: 8px;
-}
-.stat-num {
-  font-size: 2.2em;
-  font-weight: bold;
-  color: #409EFF;
-}
-.quick-actions {
-  text-align: center;
-  margin-bottom: 24px;
+.chart-row, .table-row, .bottom-row {
+  margin-top: 32px;
 }
 .chart-card {
-  min-height: 340px;
-  border-radius: 10px;
+  height: 100%;
 }
-.chart-title {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 16px;
-  color: #333;
-}
-.el-table th, .el-table td {
-  font-size: 14px;
+.bar-chart, .radar-chart {
+  width: 100%;
+  height: 300px;
 }
 @media (max-width: 768px) {
-  .stat-card, .chart-card {
-    min-height: 120px;
-  }
-  .chart-title {
-    font-size: 16px;
+  .dashboard-editor-container {
+    padding: 16px 8px;
   }
 }
 </style>

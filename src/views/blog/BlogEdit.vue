@@ -39,6 +39,7 @@
         <el-form-item label="状态">
           <el-radio-group v-model="form.status">
             <el-radio :label="0">草稿</el-radio>
+            <el-radio :label="2">待审核</el-radio>
             <el-radio :label="1">已发布</el-radio>
           </el-radio-group>
         </el-form-item>
@@ -64,12 +65,17 @@ import 'mavon-editor/dist/css/index.css'
 import { mavonEditor } from 'mavon-editor'
 import { getBlogDetail, createBlog, updateBlog } from '@/api/modules/blog'
 import { getTags } from '@/api/modules/tag'
-import { addBlogCategory, getCategoriesByBlog } from '@/api/modules/relation/categoryBlogRelation'
+import { getCategoriesByBlog } from '@/api/modules/relation/categoryBlogRelation'
 import { getCategories } from '@/api/modules/category'
-import { addBlogTags } from '@/api/modules/tag'
 export default {
   name: 'BlogEdit',
   components: { mavonEditor },
+  computed: {
+    // 从 store 获取当前登录用户ID
+    currentUserId() {
+      return this.$store.getters.userId || 1
+    }
+  },
   data() {
     return {
       form: {
@@ -77,7 +83,7 @@ export default {
         summary: '',
         content: '',
         coverImage: '',
-        authorId: 1,
+        authorId: null, // 不再硬编码，在 created 中从用户信息获取
         tagIds: [],
         categoryId: null,
         status: 0,
@@ -92,31 +98,55 @@ export default {
     }
   },
   async created() {
+    // 设置当前登录用户为作者
+    this.form.authorId = this.currentUserId
+    
     // 新建时优先恢复缓存
     const cache = localStorage.getItem(this.cacheKey)
     if (cache && !this.$route.params.id) {
-      Object.assign(this.form, JSON.parse(cache))
+      const cachedData = JSON.parse(cache)
+      Object.assign(this.form, cachedData)
+      // 缓存中的 authorId 不覆盖，始终使用当前登录用户
+      this.form.authorId = this.currentUserId
     }
-    // 获取标签列表
-    if (typeof getTags === 'function') {
-      const tagRes = await getTags()
-      this.tagList = tagRes.data || []
-    }
-    // 获取分类列表
-    if (typeof getCategories === 'function') {
-      const catRes = await getCategories()
-      this.categoryList = catRes.data || []
-    }
+    
+    // 并行获取标签和分类列表，提升性能
+    const [tagRes, catRes] = await Promise.all([
+      typeof getTags === 'function' ? getTags() : { data: [] },
+      typeof getCategories === 'function' ? getCategories() : { data: [] }
+    ])
+    this.tagList = tagRes.data || []
+    this.categoryList = catRes.data || []
+    
     if (this.$route.params.id) {
       this.isEdit = true
-      const res = await getBlogDetail(this.$route.params.id)
-      this.form = res.data || {}
-      if (res.data && Array.isArray(res.data.tags)) {
-        this.form.tagIds = res.data.tags.map(t => t.id)
-      }
-      // 分类回显：直接用详情里的 category.id
-      if (res.data && res.data.category && res.data.category.id) {
-        this.form.categoryId = res.data.category.id
+      try {
+        const res = await getBlogDetail(this.$route.params.id)
+        const blogData = res.data || {}
+        
+        // 逐个字段赋值，保留form的初始默认值（特别是tagIds数组）
+        if (blogData.title !== undefined) this.form.title = blogData.title
+        if (blogData.content !== undefined) this.form.content = blogData.content
+        if (blogData.summary !== undefined) this.form.summary = blogData.summary
+        if (blogData.cover !== undefined) this.form.cover = blogData.cover
+        if (blogData.status !== undefined) this.form.status = blogData.status
+        if (blogData.authorId !== undefined) this.form.authorId = blogData.authorId
+        
+        // 标签回显：确保tagIds始终为数组类型
+        if (Array.isArray(blogData.tags)) {
+          this.form.tagIds = blogData.tags.map(t => t.id)
+        } else {
+          // 如果tags不是数组，保持初始空数组
+          this.form.tagIds = []
+        }
+        
+        // 分类回显：直接用详情里的 category.id
+        if (blogData.category && blogData.category.id) {
+          this.form.categoryId = blogData.category.id
+        }
+      } catch (error) {
+        console.error('获取博客详情失败:', error)
+        this.$message.error('获取博客详情失败')
       }
     }
   },
@@ -136,18 +166,27 @@ export default {
       // 检查是否有新标签（字符串类型）
       const newTags = val.filter(v => typeof v === 'string')
       if (newTags.length > 0) {
-        for (const tagName of newTags) {
-          // 调用后端新增标签接口
-          const res = await this.$axios.post('/v1/tag', { name: tagName })
+        // 使用 Promise.all 并行创建标签，提升性能
+        const createPromises = newTags.map(tagName => 
+          this.$axios.post('/v1/tag', { name: tagName })
+        )
+        
+        const results = await Promise.all(createPromises)
+        
+        // 批量替换新标签名称为ID
+        results.forEach((res, index) => {
           if (res.code === 200 && res.data && res.data.id) {
-            // 替换为新ID
+            const tagName = newTags[index]
             const idx = this.form.tagIds.indexOf(tagName)
-            if (idx !== -1) this.form.tagIds.splice(idx, 1, res.data.id)
-            // 刷新标签列表
-            const tagRes = await getTags()
-            this.tagList = tagRes.data || []
+            if (idx !== -1) {
+              this.form.tagIds.splice(idx, 1, res.data.id)
+            }
           }
-        }
+        })
+        
+        // 只刷新一次标签列表
+        const tagRes = await getTags()
+        this.tagList = tagRes.data || []
       }
     },
     async handleSubmit() {
@@ -160,16 +199,12 @@ export default {
       submitData.categoryId = this.form.categoryId
       submitData.tagIds = this.form.tagIds // 保证 tagIds 一定传递
       if (this.isEdit) {
+        // 编辑模式必须传递博客 id
+        submitData.id = parseInt(this.$route.params.id)
         await updateBlog(submitData)
-        await addBlogCategory(this.form.id, this.form.categoryId)
-        await addBlogTags(this.form.id, this.form.tagIds)
         this.$message.success('编辑成功')
       } else {
-        const res = await createBlog(submitData)
-        if (res && res.data && res.data.id) {
-          await addBlogCategory(res.data.id, this.form.categoryId)
-          await addBlogTags(res.data.id, this.form.tagIds)
-        }
+        await createBlog(submitData)
         this.$message.success('新建成功')
         localStorage.removeItem(this.cacheKey)
       }

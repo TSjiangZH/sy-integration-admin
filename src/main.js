@@ -17,6 +17,10 @@ import router from './router'
 import '@/icons' // icon
 import '@/permission' // permission control
 
+// 导入权限指令模块并全局注册
+import permission from '@/directive/permission'
+Vue.use(permission)
+
 // 导入错误处理模块
 import { initGlobalErrorHandler } from '@/utils/error-handler'
 

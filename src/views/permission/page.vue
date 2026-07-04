@@ -9,6 +9,7 @@
         <div class="user-details">
           <h2 class="user-name">{{ name }}</h2>
           <p class="user-intro">{{ introduction }}</p>
+          <p class="user-email">{{ email }}</p>
         </div>
       </div>
     </el-card>
@@ -88,7 +89,7 @@ export default {
       }
     },
   computed: {
-    ...mapState('user', ['name', 'avatar', 'introduction', 'roles', 'perms']),
+    ...mapState('user', ['name', 'avatar', 'introduction', 'roles', 'perms','email']),
     permissionsTree() {
       // 格式化权限数据为树形结构
       return this.formatPermissions(this.perms)
@@ -258,7 +259,7 @@ export default {
   color: #2c3e50;
 }
 
-.user-intro {
+.user-intro, .user-email {
   font-size: 15px;
   color: #666;
   line-height: 1.6;

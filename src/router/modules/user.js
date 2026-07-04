@@ -1,4 +1,5 @@
 import Layout from '@/layout'
+import { Icons } from '@/router/icons'
 
 const userRoutes = [
   {
@@ -8,9 +9,9 @@ const userRoutes = [
     name: 'User',
     meta: {
       title: '用户管理',
-      icon: 'el-icon-user-solid',
-      // 修改为正确的权限标识
-      perms: ['manage:user:*']
+      icon: Icons.USER_SOLID,
+      /** 【权限控制】路由访问权限 - 使用access权限控制页面访问 */
+      permissions: ['access:user:*']
     },
     children: [
       {
@@ -19,9 +20,9 @@ const userRoutes = [
         name: 'UserList',
         meta: {
           title: '用户列表',
-          icon: 'el-icon-user',
-          // 修改为正确的权限标识
-          perms: ['access:user:*']
+          icon: Icons.USER,
+          /** 【权限控制】路由访问权限 - 使用access权限控制页面访问 */
+          permissions: ['access:user:list']
         }
       }
     ]

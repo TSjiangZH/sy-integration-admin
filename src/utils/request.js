@@ -29,17 +29,19 @@ const shouldRetry = (error) => {
 service.interceptors.request.use(
   config => {
     // do something before request is sent
-
-    if (store.getters.token) {
+    
+    // 直接从auth工具获取token，而不依赖store.getters.token
+    const token = getToken()
+    if (token) {
       // let each request carry token
       // use Authorization header with Bearer scheme for backend compatibility
-      config.headers['Authorization'] = 'Bearer ' + getToken()
+      config.headers['Authorization'] = 'Bearer ' + token
     }
     return config
   },
   error => {
     // do something with request error
-    // console.log(error) // for debug
+    console.error('请求拦截器错误:', error)
     handleError(error, 'Request Interceptor Error')
     return Promise.reject(error)
   }
@@ -63,55 +65,74 @@ let isRefreshing = false
 let requests = []
 
 const handleResponseError = error => {
-  // console.log('err' + error) // for debug
+  console.error('响应错误:', error)
 
   // 处理令牌过期情况
   if (error.response && error.response.status === 401) {
     const originalRequest = error.config
+    
+    // 避免循环刷新：如果已经是刷新token的请求或已经尝试过重试，则直接退出
+    if (originalRequest._retry || originalRequest.url === '/auth/refresh') {
+      // 清除令牌并跳转登录
+      clearAuthTokens()
+      // 使用Message.error而非MessageBox，避免阻塞后续操作
+      Message.error('登录已过期，请重新登录')
+      // 延迟重定向到登录页，确保错误信息能显示
+      setTimeout(() => {
+        location.href = '/login'
+      }, 1500)
+      return Promise.reject(new Error('Token已过期，请重新登录'))
+    }
 
-    // 如果不是刷新令牌请求本身
-    if (!originalRequest._retry) {
-      if (isRefreshing) {
-        // 如果正在刷新令牌，则将请求加入队列
-        return new Promise(resolve => {
-          requests.push(() => {
-            resolve(service(originalRequest))
-          })
+    // 如果正在刷新令牌，则将请求加入队列
+    if (isRefreshing) {
+      return new Promise(resolve => {
+        requests.push(() => {
+          resolve(service(originalRequest))
         })
-      }
-
-      originalRequest._retry = true
-      isRefreshing = true
-
-      // 调用刷新令牌接口
-      return new Promise((resolve, reject) => {
-        store.dispatch('user/refreshToken')
-          .then(() => {
-            isRefreshing = false
-            // 重试所有排队的请求
-            requests.forEach(cb => cb())
-            requests = []
-            // 重试当前请求
-            resolve(service(originalRequest))
-          })
-          .catch(err => {
-            isRefreshing = false
-            requests = []
-            // 刷新失败，清除令牌并跳转登录
-            clearAuthTokens()
-            MessageBox.confirm('令牌已过期，请重新登录', '确认退出', {
-              confirmButtonText: '重新登录',
-              cancelButtonText: '取消',
-              type: 'warning'
-            }).then(() => {
-              store.dispatch('user/resetToken').then(() => {
-                location.reload()
-              })
-            })
-            reject(err)
-          })
       })
     }
+
+    originalRequest._retry = true
+    isRefreshing = true
+
+    // 调用刷新令牌接口
+    return new Promise((resolve, reject) => {
+      // 首先检查是否有刷新令牌
+      const refreshToken = getRefreshToken()
+      if (!refreshToken) {
+        console.error('没有刷新令牌，直接清除token并跳转到登录页')
+        clearAuthTokens()
+        Message.error('登录已过期，请重新登录')
+        setTimeout(() => {
+          location.href = '/login'
+        }, 1500)
+        isRefreshing = false
+        return reject(new Error('没有刷新令牌'))
+      }
+      
+      store.dispatch('user/refreshToken')
+        .then(() => {
+          isRefreshing = false
+          // 重试所有排队的请求
+          requests.forEach(cb => cb())
+          requests = []
+          // 重试当前请求
+          resolve(service(originalRequest))
+        })
+        .catch(err => {
+          isRefreshing = false
+          requests = []
+          console.error('刷新令牌失败:', err)
+          // 刷新失败，清除令牌并跳转登录
+          clearAuthTokens()
+          Message.error('登录已过期，请重新登录')
+          setTimeout(() => {
+            location.href = '/login'
+          }, 1500)
+          reject(err)
+        })
+    })
   }
 
   let errorType = ErrorType.API

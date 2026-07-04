@@ -15,7 +15,8 @@
         <el-table-column prop="name" label="角色名" width="120" />
         <el-table-column prop="description" label="描述" />
         <el-table-column prop="userCount" label="用户数" width="80" />
-        <!-- 移除权限列 -->
+            <el-table-column prop="createTime" label="创建时间" width="150" />
+        <el-table-column prop="permissionCount" label="权限数" width="80" />
         <el-table-column label="操作" width="80" fixed="right">
           <template slot-scope="scope">
             <el-dropdown trigger="click">
@@ -47,10 +48,11 @@
   </div>
 </template>
 <script>
-import { fetchRoleList, deleteRole, assignRolePermission } from '@/api/modules/role'
+import { fetchRoleList, deleteRole, assignRolePermission, getRolePermissionIds } from '@/api/modules/role'
+import { getPermissions } from '@/api/modules/permission'
+import { fetchRoleAuthorities } from '@/api/modules/relation/roleAuthorityRelation'
 import RoleForm from './RoleForm.vue'
 import AssignPermissionDialog from './AssignPermissionDialog.vue'
-import request from '@/utils/request'
 
 export default {
   name: 'RoleList',
@@ -86,10 +88,7 @@ export default {
     async fetchAllPermissions() {
       try {
         // 获取所有权限列表
-        const res = await request({
-          url: '/v3/authority/list',
-          method: 'get'
-        })
+        const res = await getPermissions()
         this.allPermissions = res.data || []
         // 构建权限层级结构
         this.buildPermissionHierarchy()
@@ -182,11 +181,8 @@ export default {
       try {
         await Promise.all(this.roleList.map(async (role, idx) => {
           try {
-            // 修复：使用正确的API路径格式，将roleId作为路径参数
-            const permRes = await request({
-              url: `/v2/role-authority/authority-ids/${role.id}`,
-              method: 'get'
-            })
+            // 使用统一的API函数获取角色权限
+            const permRes = await fetchRoleAuthorities(role.id)
 
             console.log('角色权限API返回:', permRes)
 
@@ -256,13 +252,7 @@ export default {
     async loadRolePermissions(roleId) {
       try {
         // 获取已分配权限ID
-        const permRes = await request({
-          url: `/v2/system/role/authority-ids`,
-          method: 'get',
-          params: {
-            roleId: roleId
-          }
-        })
+        const permRes = await getRolePermissionIds(roleId)
         const permissions = permRes.data || []
         const checkedPermissionIds = permissions.map(perm => perm.id)
 

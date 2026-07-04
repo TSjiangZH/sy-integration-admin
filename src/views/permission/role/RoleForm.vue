@@ -27,7 +27,7 @@ export default {
       form: {
         name: '',
         code: '',
-        description: ''
+        description: '',
       }
     }
   },

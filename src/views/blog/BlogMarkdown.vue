@@ -100,7 +100,7 @@
             {{ getTagName(tagId) }}
           </el-tag>
         </div>
-        <img v-if="form.coverImage && typeof form.coverImage === 'string' && form.coverImage.trim() !== ''" :src="form.coverImage" style="max-width: 300px; margin-bottom: 16px;" />
+        <img v-if="form.coverImage && typeof form.coverImage === 'string' && form.coverImage.trim() !== ''" :src="form.coverImage" style="max-width: 300px; margin-bottom: 16px;" >
         <mavon-editor :value="form.content" :subfield="false" :defaultOpen="'preview'" :editable="false" />
       </el-dialog>
     </el-card>
@@ -112,9 +112,7 @@ import 'mavon-editor/dist/css/index.css'
 import { mavonEditor } from 'mavon-editor'
 import { getBlogDetail, createBlog, updateBlog } from '@/api/modules/blog'
 import { getTags, addBlogTags } from '@/api/modules/tag'
-import { uploadLocalImage } from '@/api/modules/image'
 import { getCategories } from '@/api/modules/category'
-import category from '@/router/modules/category'
 
 export default {
   components: { mavonEditor },
@@ -149,7 +147,7 @@ export default {
       previewVisible: false,
       uploadAction: '/v1/image/upload/local',
       uploadHeaders: {},
-      coverType: 'local',
+      coverType: 'local'
 
     }
   },

@@ -3,11 +3,24 @@
     <el-card>
       <div slot="header" class="clearfix">
         <span>用户管理</span>
-        <el-button v-if="hasAddPerm" style="float: right;" type="primary" size="small"
-          @click="showUserForm()">新增用户</el-button>
+        <!-- 使用 v-permission 指令控制按钮显示，支持通配符匹配 -->
+        <el-button
+          v-permission="'manage:user:add'"
+          style="float: right;"
+          type="primary"
+          size="small"
+          @click="showUserForm()"
+        >
+          新增用户
+        </el-button>
       </div>
-      <el-input v-model="search" placeholder="搜索用户名/昵称" style="width: 200px; margin-bottom: 10px;" @input="fetchList"
-        clearable />
+      <el-input
+        v-model="search"
+        placeholder="搜索用户名/昵称"
+        style="width: 200px; margin-bottom: 10px;"
+        clearable
+        @input="fetchList"
+      />
       <el-table :data="userList" border stripe style="width: 100%">
         <el-table-column prop="username" label="用户名" width="120">
           <template slot-scope="scope">
@@ -38,37 +51,82 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination style="margin-top: 16px; text-align: right;" :current-page="page" :page-size="pageSize"
-        :total="total" layout="total, prev, pager, next" @current-change="fetchList" />
+      <el-pagination
+        style="margin-top: 16px; text-align: right;"
+        :current-page="page"
+        :page-size="pageSize"
+        :total="total"
+        layout="total, prev, pager, next"
+        @current-change="fetchList"
+      />
     </el-card>
-    <UserForm v-if="userFormVisible" :user="currentUser" @close="userFormVisible = false; fetchList()" />
-    <AssignRoleDialog :visible="assignRoleDialogVisible" :roleList="roleList" :selectedRoleId.sync="selectedRoleId"
-      @close="assignRoleDialogVisible = false" @confirm="onAssignRoleConfirm" />
+    <UserForm
+      v-if="userFormVisible"
+      :user="currentUser"
+      @close="userFormVisible = false; fetchList()"
+    />
+    <AssignRoleDialog
+      :visible="assignRoleDialogVisible"
+      :role-list="roleList"
+      :selected-role-id.sync="selectedRoleId"
+      @close="assignRoleDialogVisible = false"
+      @confirm="onAssignRoleConfirm"
+    />
     <ActionPanel v-model="actionPanelVisible" :title="'操作面板'" @close="closeActionPanel">
       <template v-if="currentRow.deleted">
         <el-button size="mini" type="warning" @click="handleRestore(currentRow)">恢复</el-button>
       </template>
       <template v-else>
-        <el-button v-if="hasEditPerm" size="mini" @click="showUserForm(currentRow)">编辑</el-button>
-        <el-button v-if="hasDeletePerm" size="mini" type="danger" @click="handleLogicDelete(currentRow)">删除</el-button>
-        <el-button size="mini" v-if="hasRealDeletePerm" type="danger" plain
-          @click="handleRealDelete(currentRow)">彻底删除</el-button>
-        <el-button v-if="hasAssignRolePerm" size="mini" @click="handleAssignRole(currentRow)">分配角色</el-button>
+        <!-- 使用 v-permission 指令替代原有的 computed 属性方式 -->
+        <el-button
+          v-permission="'manage:user:edit'"
+          size="mini"
+          @click="showUserForm(currentRow)"
+        >
+          编辑
+        </el-button>
+        <el-button
+          v-permission="'manage:user:delete'"
+          size="mini"
+          type="danger"
+          @click="handleLogicDelete(currentRow)"
+        >
+          删除
+        </el-button>
+        <el-button
+          v-permission="'delete_user_real'"
+          size="mini"
+          type="danger"
+          plain
+          @click="handleRealDelete(currentRow)"
+        >
+          彻底删除
+        </el-button>
+        <el-button
+          v-permission="'manage:user:assignRole'"
+          size="mini"
+          @click="handleAssignRole(currentRow)"
+        >
+          分配角色
+        </el-button>
         <el-button size="mini" @click="handleResetPwd(currentRow)">重置密码</el-button>
       </template>
     </ActionPanel>
   </div>
 </template>
 <script>
-import { fetchUserList, deleteUser, logicDeleteUser, realDeleteUser } from '@/api/modules/user'
+import { fetchUserList, logicDeleteUser, realDeleteUser } from '@/api/modules/user'
 import UserForm from './UserForm.vue'
 import { fetchRoleList } from '@/api/modules/role'
 import { assignUserRole } from '@/api/modules/user'
 import AssignRoleDialog from './AssignRoleDialog.vue'
 import ActionPanel from '@/components/ActionPanel.vue'
-// 1. 导入 mapGetters 用于从 Vuex 获取权限
-import { mapGetters } from 'vuex'
 
+/**
+ * 用户管理页面组件
+ * 使用 v-permission 指令实现按钮级权限控制
+ * 权限指令已在 main.js 中全局注册
+ */
 export default {
   name: 'UserList',
   components: { UserForm, AssignRoleDialog, ActionPanel },
@@ -85,35 +143,12 @@ export default {
       currentUserForRole: null,
       roleList: [],
       selectedRoleId: null,
-      // 2. 移除本地未使用的 userPerms 数组
-      // userPerms: [],
       actionPanelVisible: false,
       currentRow: {}
     }
   },
-  computed: {
-    // 3. 从 Vuex store 获取用户权限
-    ...mapGetters(['perms']),
-
-    // 4. 修改权限判断逻辑，使用 || 替代 &&，并使用从 Vuex 获取的 perms
-    hasAddPerm() {
-      return this.perms.includes('manage:user:add') || this.perms.includes('manage:user:*')
-    },
-    hasEditPerm() {
-      return this.perms.includes('manage:user:edit') || this.perms.includes('manage:user:*')
-    },
-    hasDeletePerm() {
-      return this.perms.includes('manage:user:delete') || this.perms.includes('manage:user:*')
-    },
-    hasAssignRolePerm() {
-      return this.perms.includes('manage:user:assignRole') || this.perms.includes('manage:user:*')
-    },
-    hasRealDeletePerm() {
-      return this.perms.includes('delete_user_real')
-    }
-  },
   created() {
-    // 保持原有的初始化逻辑
+    // 初始化时获取用户列表
     this.fetchList()
   },
   methods: {
