@@ -28,9 +28,9 @@
       <el-table :data="approvedList" style="width: 100%" border stripe size="small">
         <el-table-column prop="id" label="ID" width="60" align="center" />
         <el-table-column prop="title" label="标题" min-width="120" />
-        <el-table-column prop="coverImage" label="封面" width="100" align="center">
+        <el-table-column prop="cover" label="封面" width="100" align="center">
           <template slot-scope="scope">
-            <img v-if="scope.row.coverImage" :src="scope.row.coverImage" style="width:60px;height:40px;object-fit:cover;" >
+            <img v-if="scope.row.cover" :src="scope.row.cover" style="width:60px;height:40px;object-fit:cover;" >
           </template>
         </el-table-column>
         <el-table-column prop="summary" label="摘要/描述" min-width="150" show-overflow-tooltip />
@@ -71,7 +71,7 @@
         </el-table-column>
         <el-table-column prop="createTime" label="发布时间" width="180" align="center">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.createTime) }}
+            {{ formatBlogDate(scope.row.createTime) }}
           </template>
         </el-table-column>
         <el-table-column prop="enableComment" label="评论" width="80" align="center">
@@ -113,8 +113,8 @@
   </div>
 </template>
 <script>
-import { fetchBlogList, deleteBlog, setTopBlog, setRecommendBlog } from '@/api/modules/blog'
-import dayjs from 'dayjs'
+import { fetchBlogList, deleteBlog, setTopBlog, setRecommendBlog, updateBlog } from '@/api/modules/blog'
+import { formatBlogDate } from '@/utils/blog'
 import ActionPanel from '@/components/ActionPanel.vue'
 import HighlightSearch from '@/components/HighlightSearch/index.vue'
 export default {
@@ -139,6 +139,7 @@ export default {
     this.fetchList()
   },
   methods: {
+    formatBlogDate,
     async fetchList(page = 1) {
       try {
         this.page = page
@@ -209,8 +210,16 @@ export default {
         this.fetchList(this.page)
       }
     },
-    handleEnableComment(row) {
-      this.$message.info('评论开关已更新')
+    async handleEnableComment(row) {
+      try {
+        await this.$confirm('确定要修改该博客的评论状态吗？', '提示', { type: 'warning' })
+        await updateBlog({ id: row.id, enableComment: row.enableComment })
+        this.$message.success('评论状态已更新')
+        this.fetchList(this.page)
+      } catch (e) {
+        this.$message.error('操作失败：' + (e && e.message ? e.message : '未知错误'))
+        this.fetchList(this.page)
+      }
     },
     openActionPanel(row) {
       this.currentRow = row
@@ -230,9 +239,6 @@ export default {
     handleSelectBlog(blog) {
       this.$message.info(`已选择博客: ${blog.title}`)
       this.goEdit(blog.id)
-    },
-    formatDate(date) {
-      return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
     }
   }
 }

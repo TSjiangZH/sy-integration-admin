@@ -5,7 +5,6 @@
         <span>{{ isEdit ? '编辑博客' : '新建博客' }}</span>
       </div>
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
-
         <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" />
         </el-form-item>
@@ -29,7 +28,7 @@
             <el-option v-for="cat in categoryList" :key="cat.id" :label="cat.name" :value="cat.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="封面图片" prop="coverImage">
+        <el-form-item label="封面图片" prop="cover">
           <el-radio-group v-model="coverType" size="small" style="margin-bottom: 8px;">
             <el-radio-button label="local">本地上传</el-radio-button>
             <el-radio-button label="cloud">云盘/外链</el-radio-button>
@@ -47,20 +46,20 @@
             </el-upload>
           </div>
           <div v-else>
-            <el-input v-model="form.coverImage" placeholder="请输入图片外链" />
+            <el-input v-model="form.cover" placeholder="请输入图片外链" />
           </div>
-          <img v-if="form.coverImage && typeof form.coverImage === 'string' && form.coverImage.trim() !== ''" :src="form.coverImage" style="max-width: 200px; margin-top: 8px;" />
+          <img v-if="form.cover && typeof form.cover === 'string' && form.cover.trim() !== ''" :src="form.cover" style="max-width: 200px; margin-top: 8px;" />
         </el-form-item>
-
         <el-form-item label="摘要" prop="summary">
           <el-input type="textarea" v-model="form.summary" />
         </el-form-item>
         <el-form-item label="内容" prop="content">
-          <mavon-editor v-model="form.content" style="min-height: 400px;" />
+          <MarkdownEditor v-model="form.content" />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio :label="0">草稿</el-radio>
+            <el-radio :label="2">待审核</el-radio>
             <el-radio :label="1">已发布</el-radio>
           </el-radio-group>
         </el-form-item>
@@ -70,7 +69,6 @@
         <el-form-item label="置顶" prop="isTop">
           <el-switch v-model="form.isTop" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <!-- 只读统计字段，仅编辑时显示 -->
         <el-form-item label="浏览量" v-if="isEdit">
           <el-input v-model="form.viewCount" disabled />
         </el-form-item>
@@ -86,7 +84,6 @@
           <el-button @click="handlePreview">预览</el-button>
         </el-form-item>
       </el-form>
-      <!-- 博客预览弹窗 -->
       <el-dialog :visible.sync="previewVisible" width="60%" title="博客预览">
         <h2>{{ form.title }}</h2>
         <div style="color: #888; margin-bottom: 8px;">摘要：{{ form.summary }}</div>
@@ -100,22 +97,21 @@
             {{ getTagName(tagId) }}
           </el-tag>
         </div>
-        <img v-if="form.coverImage && typeof form.coverImage === 'string' && form.coverImage.trim() !== ''" :src="form.coverImage" style="max-width: 300px; margin-bottom: 16px;" >
-        <mavon-editor :value="form.content" :subfield="false" :defaultOpen="'preview'" :editable="false" />
+        <img v-if="form.cover && typeof form.cover === 'string' && form.cover.trim() !== ''" :src="form.cover" style="max-width: 300px; margin-bottom: 16px;" >
+        <v-md-editor mode="preview" :value="form.content" />
       </el-dialog>
     </el-card>
   </div>
 </template>
-
 <script>
-import 'mavon-editor/dist/css/index.css'
-import { mavonEditor } from 'mavon-editor'
 import { getBlogDetail, createBlog, updateBlog } from '@/api/modules/blog'
 import { getTags, addBlogTags } from '@/api/modules/tag'
 import { getCategories } from '@/api/modules/category'
+import MarkdownEditor from '@/components/MarkdownEditor'
 
 export default {
-  components: { mavonEditor },
+  name: 'BlogMarkdown',
+  components: { MarkdownEditor },
   data() {
     return {
       form: {
@@ -123,7 +119,7 @@ export default {
         title: '',
         summary: '',
         content: '',
-        coverImage: '',
+        cover: '',
         authorId: this.$store.getters.userId || 1,
         status: 0,
         isRecommend: 0,
@@ -131,45 +127,54 @@ export default {
         tags: [],
         viewCount: 0,
         likeCount: 0,
-        commentCount: 0,
-        categoryId: null,
-        enableComment: 1
+        commentCount: 0
       },
       tagList: [],
       categoryList: [],
-      isEdit: false,
-      rules: {
+      coverType: 'local',
+      previewVisible: false,
+      uploadAction: '/v1/image/upload/local'
+    }
+  },
+  computed: {
+    uploadHeaders() {
+      return {
+        'Authorization': 'Bearer ' + this.$store.getters.token
+      }
+    },
+    isEdit() {
+      return !!this.$route.params.id
+    },
+    rules() {
+      return {
         title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
         content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
-        categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
-        tags: [{ required: true, type: 'array', min: 1, message: '请选择标签', trigger: 'change' }]
-      },
-      previewVisible: false,
-      uploadAction: '/v1/image/upload/local',
-      uploadHeaders: {},
-      coverType: 'local'
-
+        categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }]
+      }
     }
   },
   async created() {
-    // 获取标签列表
-    const tagRes = await getTags()
+    const [tagRes, catRes] = await Promise.all([
+      typeof getTags === 'function' ? getTags() : { data: [] },
+      typeof getCategories === 'function' ? getCategories() : { data: [] }
+    ])
     this.tagList = tagRes.data || []
-    // 获取分类列表
-    const categoryRes = await getCategories()
-    this.categoryList = categoryRes.data || []
+    this.categoryList = catRes.data || []
 
-    // 编辑模式加载详情
     if (this.$route.params.id) {
-      this.isEdit = true
-      const res = await getBlogDetail(this.$route.params.id)
-      if (res.data) {
-        this.form = {
-          ...this.form,
-          ...res.data,
-          tags: (res.data.tags || []).map(t => t.id),
-          categoryId: res.data.category ? res.data.category.id : null
+      try {
+        const res = await getBlogDetail(this.$route.params.id)
+        const blogData = res.data || {}
+        Object.assign(this.form, blogData)
+        if (Array.isArray(blogData.tags)) {
+          this.form.tags = blogData.tags.map(t => t.id)
         }
+        if (blogData.category && blogData.category.id) {
+          this.form.categoryId = blogData.category.id
+        }
+      } catch (error) {
+        console.error('获取博客详情失败:', error)
+        this.$message.error('获取博客详情失败')
       }
     }
   },
@@ -178,14 +183,9 @@ export default {
       const tag = this.tagList.find(t => t.id === tagId)
       return tag ? tag.name : tagId
     },
-    getCategories() {
-      return this.categoryList.map(cat => ({ id: cat.id, name: cat.name }))
-    },
-
     handleCoverSuccess(res) {
-      // 兼容后端返回格式
-      this.form.coverImage = res.data && res.data.url ? res.data.url : (res.url || '')
-      this.coverType = 'cloud' // 上传后自动切换到外链模式，方便预览和编辑
+      this.form.cover = res.data && res.data.url ? res.data.url : (res.url || '')
+      this.$message.success('封面上传成功')
     },
     beforeCoverUpload(file) {
       const isImage = file.type.startsWith('image/')
@@ -203,7 +203,6 @@ export default {
         this.$refs.formRef.validate(async valid => {
           if (!valid) return
           try {
-            // 提交时只传 tagIds，不传 tags 字段
             const { tags, ...submitData } = this.form
             submitData.tagIds = this.form.tags
             let res
@@ -212,25 +211,19 @@ export default {
             } else {
               res = await createBlog(submitData)
             }
-            if (res.code === 200) {
-              // 保存标签关系
-              const blogId = this.isEdit ? this.form.id : res.data.id
-              try {
-                await addBlogTags(blogId, this.form.tags)
-              } catch (e) {
-                this.$message.error('标签保存失败')
-              }
+            if (res && res.code === 200) {
               this.$message.success('保存成功')
               this.$router.back()
             } else {
-              this.$message.error({ message: res.message || '保存失败', duration: 3000 })
+              this.$message.error('保存失败')
             }
-          } catch (e) {
-            this.$message.error('保存失败：' + (e && e.message ? e.message : '未知错误'))
+          } catch (error) {
+            console.error('保存失败:', error)
+            this.$message.error('保存失败：' + (error.message || '未知错误'))
           }
         })
-      } catch (e) {
-        this.$message.error('保存失败：' + (e && e.message ? e.message : '未知错误'))
+      } catch (error) {
+        console.error('验证失败:', error)
       }
     },
     handlePreview() {
@@ -239,12 +232,5 @@ export default {
   }
 }
 </script>
-
 <style scoped>
-.markdown-editor-wrapper {
-  margin-top: 16px;
-}
-.cover-uploader {
-  display: inline-block;
-}
 </style>

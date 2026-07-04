@@ -32,6 +32,7 @@
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="标签名" />
         <el-table-column prop="description" label="描述" />
+        <el-table-column prop="count" label="关联文章数" width="120" />
         <el-table-column prop="createTime" label="创建时间">
           <template slot-scope="scope">
             {{ formatDate(scope.row.createTime) }}

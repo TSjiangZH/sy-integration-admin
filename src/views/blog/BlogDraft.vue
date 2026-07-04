@@ -28,9 +28,9 @@
       <el-table :data="draftList" style="width: 100%" border stripe size="small">
         <el-table-column prop="id" label="ID" width="60" align="center" />
         <el-table-column prop="title" label="标题" min-width="120" />
-        <el-table-column prop="coverImage" label="封面" width="100" align="center">
+        <el-table-column prop="cover" label="封面" width="100" align="center">
           <template slot-scope="scope">
-            <img v-if="scope.row.coverImage" :src="scope.row.coverImage" style="width:60px;height:40px;object-fit:cover;" >
+            <img v-if="scope.row.cover" :src="scope.row.cover" style="width:60px;height:40px;object-fit:cover;" >
           </template>
         </el-table-column>
         <el-table-column prop="summary" label="摘要/描述" min-width="150" show-overflow-tooltip />
@@ -54,12 +54,12 @@
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="180" align="center">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.createTime) }}
+            {{ formatBlogDate(scope.row.createTime) }}
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="更新时间" width="180" align="center">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.updateTime) }}
+            {{ formatBlogDate(scope.row.updateTime) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" align="center">
@@ -84,7 +84,7 @@
 </template>
 <script>
 import { fetchDraftList, deleteBlog, submitReview } from '@/api/modules/blog'
-import dayjs from 'dayjs'
+import { formatBlogDate } from '@/utils/blog'
 import HighlightSearch from '@/components/HighlightSearch/index.vue'
 export default {
   components: {
@@ -104,6 +104,7 @@ export default {
     this.fetchList()
   },
   methods: {
+    formatBlogDate,
     async fetchList(page = 1) {
       try {
         this.page = page
@@ -164,9 +165,6 @@ export default {
     },
     handleSelectBlog(row) {
       this.$router.push({ name: 'BlogEdit', params: { id: row.id }})
-    },
-    formatDate(date) {
-      return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
     }
   }
 }

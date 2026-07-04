@@ -50,7 +50,7 @@
 <script>
 import { fetchRoleList, deleteRole, assignRolePermission, getRolePermissionIds } from '@/api/modules/role'
 import { getPermissions } from '@/api/modules/permission'
-import { fetchRoleAuthorities } from '@/api/modules/relation/roleAuthorityRelation'
+import { fetchRolePermissions } from '@/api/modules/relation/roleAuthorityRelation'
 import RoleForm from './RoleForm.vue'
 import AssignPermissionDialog from './AssignPermissionDialog.vue'
 
@@ -182,7 +182,7 @@ export default {
         await Promise.all(this.roleList.map(async (role, idx) => {
           try {
             // 使用统一的API函数获取角色权限
-            const permRes = await fetchRoleAuthorities(role.id)
+            const permRes = await fetchRolePermissions(role.id)
 
             console.log('角色权限API返回:', permRes)
 

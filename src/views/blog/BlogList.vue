@@ -35,9 +35,9 @@
       <el-table :data="blogList" style="width: 100%" border stripe size="small">
         <el-table-column prop="id" label="ID" width="60" align="center" />
         <el-table-column prop="title" label="标题" min-width="120" />
-        <el-table-column prop="coverImage" label="封面" width="100" align="center">
+        <el-table-column prop="cover" label="封面" width="100" align="center">
           <template slot-scope="scope">
-            <img v-if="scope.row.coverImage" :src="scope.row.coverImage" style="width:60px;height:40px;object-fit:cover;" >
+            <img v-if="scope.row.cover" :src="scope.row.cover" style="width:60px;height:40px;object-fit:cover;" >
           </template>
         </el-table-column>
         <el-table-column prop="summary" label="摘要/描述" min-width="150" show-overflow-tooltip />
@@ -52,8 +52,8 @@
         <el-table-column prop="commentCount" label="评论数" width="80" align="center" />
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template slot-scope="scope">
-            <el-tag :type="getStatusType(scope.row.status)">
-              {{ getStatusText(scope.row.status) }}
+            <el-tag :type="getBlogStatusType(scope.row.status)">
+              {{ getBlogStatusText(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -85,7 +85,7 @@
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="180" align="center">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.createTime) }}
+            {{ formatBlogDate(scope.row.createTime) }}
           </template>
         </el-table-column>
         <el-table-column prop="enableComment" label="评论" width="80" align="center">
@@ -127,8 +127,8 @@
   </div>
 </template>
 <script>
-import { fetchBlogList, deleteBlog, setTopBlog, setRecommendBlog } from '@/api/modules/blog'
-import dayjs from 'dayjs'
+import { fetchBlogList, deleteBlog, setTopBlog, setRecommendBlog, updateBlog } from '@/api/modules/blog'
+import { getBlogStatusText, getBlogStatusType, formatBlogDate } from '@/utils/blog'
 import ActionPanel from '@/components/ActionPanel.vue'
 import HighlightSearch from '@/components/HighlightSearch/index.vue'
 export default {
@@ -153,6 +153,9 @@ export default {
     this.fetchList()
   },
   methods: {
+    getBlogStatusText,
+    getBlogStatusType,
+    formatBlogDate,
     async fetchList(page = 1) {
       try {
         this.page = page
@@ -224,20 +227,13 @@ export default {
     async handleEnableComment(row) {
       try {
         await this.$confirm('确定要修改该博客的评论状态吗？', '提示', { type: 'warning' })
-        await this.$axios({
-          url: `/v1/blog`,
-          method: 'put',
-          data: row
-        })
+        await updateBlog({ id: row.id, enableComment: row.enableComment })
         this.$message.success('评论状态已更新')
         this.fetchList(this.page)
       } catch (e) {
         this.$message.error('操作失败：' + (e && e.message ? e.message : '未知错误'))
         this.fetchList(this.page)
       }
-    },
-    formatDate(val) {
-      return val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : ''
     },
     openActionPanel(row) {
       this.currentRow = row
@@ -257,30 +253,9 @@ export default {
       this.orderType = this.orderType === 'desc' ? 'asc' : 'desc'
       this.fetchList(1)
     },
-    // 搜索选择博客
     handleSelectBlog(blog) {
       this.$message.info(`已选择博客: ${blog.title}`)
       this.goEdit(blog.id)
-    },
-    // 获取状态类型（与BlogView.vue保持一致）
-    getStatusType(status) {
-      const types = {
-        0: 'info',
-        1: 'success',
-        2: 'warning',
-        3: 'danger'
-      }
-      return types[status] || 'info'
-    },
-    // 获取状态文本（与BlogView.vue保持一致）
-    getStatusText(status) {
-      const texts = {
-        0: '草稿',
-        1: '已发布',
-        2: '待审核',
-        3: '审核不通过'
-      }
-      return texts[status] || '未知状态'
     }
   }
 }

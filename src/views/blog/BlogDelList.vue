@@ -34,7 +34,7 @@
         <el-table-column label="评论数" prop="commentCount" width="80" />
         <el-table-column label="删除时间" prop="updateTime" width="180">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.updateTime) }}
+            {{ formatBlogDate(scope.row.updateTime) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="260">
@@ -61,7 +61,7 @@
 </template>
 <script>
 import { fetchDeletedBlogList, physicalDeleteBlog, batchPhysicalDeleteBlogs, recoverBlog } from '@/api/modules/blog'
-import dayjs from 'dayjs'
+import { formatBlogDate } from '@/utils/blog'
 export default {
   name: 'BlogDelList',
   data() {
@@ -77,6 +77,7 @@ export default {
     this.fetchList()
   },
   methods: {
+    formatBlogDate,
     goBack() {
       this.$router.push({ name: 'BlogList' })
     },
@@ -89,10 +90,6 @@ export default {
       } catch (e) {
         this.$message.error('加载失败：' + (e && e.message ? e.message : '未知错误'))
       }
-    },
-    formatDate(date) {
-      if (!date) return '-'
-      return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
     },
     async handleRecover(id) {
       try {

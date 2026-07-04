@@ -42,7 +42,7 @@
               <span class="dot"></span>
               <span class="meta-item">
                 <i class="el-icon-time"></i>
-                {{ formatDate(blog.createTime) }}
+                {{ formatBlogDateCN(blog.createTime) }}
               </span>
               <span class="dot"></span>
               <span class="meta-item">
@@ -81,8 +81,8 @@
 
             <!-- 博客状态标识 -->
             <div class="blog-status">
-              <el-tag :type="getStatusType(blog.status)">
-                {{ getStatusText(blog.status) }}
+              <el-tag :type="getBlogStatusType(blog.status)">
+                {{ getBlogStatusText(blog.status) }}
               </el-tag>
               <el-tag v-if="blog.isTop" type="danger">置顶</el-tag>
               <el-tag v-if="blog.isRecommend" type="primary">推荐</el-tag>
@@ -122,9 +122,9 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { nextTick } from 'vue'
 import { getBlogDetail } from '@/api/modules/blog'
-import dayjs from 'dayjs'
+import { getBlogStatusText, getBlogStatusType, formatBlogDateCN } from '@/utils/blog'
 import MarkdownIt from 'markdown-it'
 
 // 初始化markdown-it
@@ -182,6 +182,9 @@ export default {
     window.removeEventListener('resize', this.calcTocTop)
   },
   methods: {
+    getBlogStatusText,
+    getBlogStatusType,
+    formatBlogDateCN,
     async fetchBlogDetail(id) {
       this.loading = true
       this.error = false
@@ -307,33 +310,6 @@ export default {
           this.previewVisible = true
         }
       })
-    },
-
-    // 格式化日期
-    formatDate(val) {
-      return val && dayjs(val).isValid() ? dayjs(val).format('YYYY年MM月DD日 HH:mm') : ''
-    },
-
-    // 获取状态类型
-    getStatusType(status) {
-      const types = {
-        0: 'warning',
-        1: 'success',
-        2: 'primary',
-        3: 'danger'
-      }
-      return types[status] || 'info'
-    },
-
-    // 获取状态文本
-    getStatusText(status) {
-      const texts = {
-        0: '草稿',
-        1: '已发布',
-        2: '待审核',
-        3: '审核不通过'
-      }
-      return texts[status] || '未知状态'
     },
 
     // 返回列表

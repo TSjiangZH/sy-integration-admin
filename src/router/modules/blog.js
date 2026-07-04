@@ -44,6 +44,16 @@ const blogRoutes = [
         }
       },
       {
+        path: 'reject',
+        component: () => import('@/views/blog/BlogReject.vue'),
+        name: 'BlogReject',
+        meta: { 
+          title: '未通过审核',
+          /** 【权限控制】路由访问权限 - 使用access权限控制页面访问 */
+          permissions: ['access:blog:review']
+        }
+      },
+      {
         path: 'approved',
         component: () => import('@/views/blog/BlogApproved.vue'),
         name: 'BlogApproved',

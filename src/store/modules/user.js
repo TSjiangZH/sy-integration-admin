@@ -151,7 +151,7 @@ const actions = {
           
           // 标准化角色和权限数据
           const roles = normalizeArray(data.roles || data.role || [])
-          const perms = normalizeArray(data.perms || data.authority || data.permissions || data.authorities || [])
+          const perms = normalizeArray(data.perms || data.permission || data.authority || data.permissions || data.authorities || [])
 
           // 过滤空角色并转小写，兼容后端大写返回
           const validRoles = roles

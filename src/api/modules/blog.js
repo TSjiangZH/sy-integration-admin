@@ -1,5 +1,4 @@
 import request from '@/utils/request'
-import { get } from 'sortablejs'
 // 博客列表
 export function fetchBlogList(params) {
   return request({
@@ -179,5 +178,14 @@ export function rejectReview(id, reason) {
     url: `/v1/blog/review/reject/${id}`,
     method: 'post',
     data: { reason }
+  })
+}
+
+// 获取审核不通过博客列表
+export function fetchRejectList(params) {
+  return request({
+    url: '/v1/blog/reject/list',
+    method: 'get',
+    params
   })
 }
