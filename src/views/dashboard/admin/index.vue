@@ -12,7 +12,17 @@
     <trend-charts 
       :line-chart-data="blogTrendData" 
       :pie-chart-data="categoryPieData" 
+      pie-title="分类分布"
     />
+    
+    <!-- 标签分布饼图 -->
+    <el-row class="chart-row">
+      <el-col :xs="24" :lg="12">
+        <el-card title="标签分布" class="chart-card">
+          <pie-chart :chart-data="tagPieData" title="标签分布" />
+        </el-card>
+      </el-col>
+    </el-row>
     
     <!-- 条形图 (BarChart) -->
     <el-row class="chart-row">
@@ -57,7 +67,7 @@
 </template>
 
 <script>
-import { fetchBlogList, fetchBlogStats, fetchBlogTrend } from '@/api/modules/blog'
+import { fetchBlogList, fetchBlogStats, fetchBlogTrend, fetchTagDistribution } from '@/api/modules/blog'
 import { fetchCategoryCount, fetchCategoryDistribution } from '@/api/modules/category'
 import { fetchTagCount } from '@/api/modules/tag'
 import QuickActions from './components/QuickActions'
@@ -70,6 +80,7 @@ import TransactionTable from './components/TransactionTable'
 import BoxCard from './components/BoxCard'
 import TodoList from './components/TodoList'
 import AccountInfoCard from './components/AccountInfoCard'
+import PieChart from './components/PieChart'
 
 export default {
   name: 'DashboardAdmin',
@@ -83,7 +94,8 @@ export default {
     TransactionTable,
     BoxCard,
     TodoList,
-    AccountInfoCard
+    AccountInfoCard,
+    PieChart
   },
   data() {
     return {
@@ -92,16 +104,24 @@ export default {
         categoryCount: 0,
         tagCount: 0,
         viewCount: 0,
-        commentCount: 0
+        commentCount: 0,
+        draftCount: 0,
+        reviewCount: 0,
+        rejectCount: 0,
+        publishCount: 0
       },
-      blogTrendData: { expectedData: [], actualData: [], xData: [] },
+      blogTrendData: { xData: [], totalData: [], draftData: [], publishData: [], reviewData: [], rejectData: [] },
       categoryPieData: {},
+      tagPieData: {},
       latestBlogs: [],
       actionList: [
         { label: '新建博客', name: 'BlogEdit', type: 'primary', icon: 'el-icon-edit' },
         { label: '博客管理', name: 'BlogList', icon: 'el-icon-document' },
         { label: '分类管理', name: 'CategoryList', icon: 'el-icon-menu' },
-        { label: '标签管理', name: 'TagManage', icon: 'el-icon-collection' }
+        { label: '标签管理', name: 'TagManage', icon: 'el-icon-collection' },
+        { label: '审核管理', name: 'BlogReview', type: 'warning', icon: 'el-icon-circle-check' },
+        { label: '草稿管理', name: 'BlogDraft', icon: 'el-icon-document-copy' },
+        { label: '未通过博客', name: 'BlogReject', type: 'danger', icon: 'el-icon-circle-close' }
       ],
       // 用户信息
       userInfo: {
@@ -120,10 +140,13 @@ export default {
     overviewList() {
       return [
         { title: '博客总数', value: this.stats.blogCount, icon: 'el-icon-document', type: 'blog' },
+        { title: '已发布', value: this.stats.publishCount, icon: 'el-icon-check', type: 'publish' },
+        { title: '待审核', value: this.stats.reviewCount, icon: 'el-icon-circle-check', type: 'review' },
+        { title: '草稿', value: this.stats.draftCount, icon: 'el-icon-document-copy', type: 'draft' },
+        { title: '未通过', value: this.stats.rejectCount, icon: 'el-icon-circle-close', type: 'reject' },
         { title: '分类总数', value: this.stats.categoryCount, icon: 'list', type: 'category' },
         { title: '标签总数', value: this.stats.tagCount, icon: 'tags', type: 'tag' },
-        { title: '总浏览量', value: this.stats.viewCount, icon: 'eye', type: 'view' },
-        { title: '总评论数', value: this.stats.commentCount, icon: 'message', type: 'comment' }
+        { title: '总浏览量', value: this.stats.viewCount, icon: 'eye', type: 'view' }
       ]
     },
     accountStats() {
@@ -146,6 +169,10 @@ export default {
       this.stats.blogCount = blogStatsRes.data.blogCount || 0
       this.stats.viewCount = blogStatsRes.data.viewCount || 0
       this.stats.commentCount = blogStatsRes.data.commentCount || 0
+      this.stats.draftCount = blogStatsRes.data.draftCount || 0
+      this.stats.reviewCount = blogStatsRes.data.reviewCount || 0
+      this.stats.rejectCount = blogStatsRes.data.rejectCount || 0
+      this.stats.publishCount = blogStatsRes.data.publishCount || 0
       
       const categoryRes = await fetchCategoryCount()
       this.stats.categoryCount = categoryRes.data || 0
@@ -155,19 +182,26 @@ export default {
     },
     async loadTrend() {
       const res = await fetchBlogTrend({ days: 7 })
-      const xData = res.data.map(item => item.date)
-      const yData = res.data.map(item => item.count)
       this.blogTrendData = {
-        expectedData: yData,
-        actualData: yData,
-        xData: xData
+        xData: res.data.map(item => item.date),
+        totalData: res.data.map(item => item.total),
+        draftData: res.data.map(item => item.draft),
+        publishData: res.data.map(item => item.publish),
+        reviewData: res.data.map(item => item.review),
+        rejectData: res.data.map(item => item.reject)
       }
     },
     async loadPie() {
-      const res = await fetchCategoryDistribution()
+      const categoryRes = await fetchCategoryDistribution()
       this.categoryPieData = {
-        legend: res.data.map(item => item.name),
-        series: res.data
+        legend: categoryRes.data.map(item => item.name),
+        series: categoryRes.data
+      }
+      
+      const tagRes = await fetchTagDistribution()
+      this.tagPieData = {
+        legend: tagRes.data.map(item => item.name),
+        series: tagRes.data
       }
     },
     async loadLatestBlogs() {

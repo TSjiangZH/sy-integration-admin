@@ -169,7 +169,8 @@ router.beforeEach(async (to, from, next) => {
             const userInfoResult = await store.dispatch('user/getInfo')
             
             // 确保返回的数据包含roles和perms
-            const { roles = [], perms = [] } = userInfoResult || {} 
+            // 注意：后端返回的权限字段是 permission，需要映射到 perms
+            const { role: roles = [], permission: perms = [] } = userInfoResult || {} 
             
             console.log('用户信息获取成功，准备生成路由')
             

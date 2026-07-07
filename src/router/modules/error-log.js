@@ -27,6 +27,12 @@ const errorLogRoutes = [
         component: () => import('@/views/error-log/LoginLog.vue'),
         name: 'LoginLog',
         meta: { title: '登录日志', /** 【权限控制】路由访问权限 - 使用access权限控制页面访问 */ permissions: ['access:log:list'] }
+      },
+      {
+        path: 'operation',
+        component: () => import('@/views/error-log/OperationLog.vue'),
+        name: 'OperationLog',
+        meta: { title: '操作审计', /** 【权限控制】路由访问权限 - 使用access权限控制页面访问 */ permissions: ['access:log:list'] }
       }
     ]
   }

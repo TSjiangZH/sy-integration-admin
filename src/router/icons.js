@@ -35,6 +35,7 @@ export const Icons = {
   USER: 'el-icon-user',             // 用户(空心)
   DOCUMENT: 'el-icon-document',     // 文档
   IMAGE: 'el-icon-picture',         // 图片/媒体 (修复：使用el-icon-picture替代el-icon-image)
+  DATA_ANALYSIS: 'el-icon-data-analysis', // 数据分析/监测
 }
 
 // 图标分类枚举，便于按模块管理（仅保留业务相关分类）

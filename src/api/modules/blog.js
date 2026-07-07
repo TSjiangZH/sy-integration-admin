@@ -17,7 +17,7 @@ export function getBlogDetail(id) {
 // 创建博客
 export function createBlog(data) {
   return request({
-    url: '/v1/blog/create',
+    url: '/v1/blog',
     method: 'post',
     data
   })
@@ -25,7 +25,7 @@ export function createBlog(data) {
 // 更新博客
 export function updateBlog(data) {
   return request({
-    url: `/v1/blog/update/${data.id}`,
+    url: '/v1/blog',
     method: 'put',
     data
   })
@@ -102,6 +102,14 @@ export function fetchBlogTrend(params) {
     url: '/v1/blog/trend',
     method: 'get',
     params
+  })
+}
+
+// 标签分布
+export function fetchTagDistribution() {
+  return request({
+    url: '/v1/blog/tag-distribution',
+    method: 'get'
   })
 }
 

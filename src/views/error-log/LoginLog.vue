@@ -1,5 +1,34 @@
 <template>
   <div class="app-container">
+    <el-card class="stats-card">
+      <el-row :gutter="16">
+        <el-col :span="6">
+          <div class="stat-item">
+            <div class="stat-value">{{ stats.total || 0 }}</div>
+            <div class="stat-label">登录总次数</div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="stat-item success">
+            <div class="stat-value">{{ stats.successCount || 0 }}</div>
+            <div class="stat-label">成功次数</div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="stat-item danger">
+            <div class="stat-value">{{ stats.failCount || 0 }}</div>
+            <div class="stat-label">失败次数</div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="stat-item">
+            <div class="stat-value">{{ (stats.successRate || 0).toFixed(1) }}%</div>
+            <div class="stat-label">成功率</div>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
+
     <el-card>
       <div slot="header" class="clearfix">
         <span>登录日志</span>
@@ -104,13 +133,27 @@ export default {
         browser: '',
         environment: '',
         timeRange: []
-      }
+      },
+      stats: {}
     }
   },
   created() {
     this.fetchLogs(this.page)
+    this.loadStats()
   },
   methods: {
+    async loadStats() {
+      try {
+        const res = await fetchLoginLogs({ page: 1, limit: 1 })
+        this.stats.total = res.data.total || 0
+        const successRes = await fetchLoginLogs({ page: 1, limit: 1, status: 1 })
+        this.stats.successCount = successRes.data.total || 0
+        this.stats.failCount = this.stats.total - this.stats.successCount
+        this.stats.successRate = this.stats.total > 0 ? (this.stats.successCount / this.stats.total * 100) : 0
+      } catch (e) {
+        console.error('加载统计失败', e)
+      }
+    },
     async fetchLogs(page) {
       // 构建查询参数
       const params = {
@@ -172,6 +215,32 @@ export default {
 <style scoped>
 .app-container {
   padding: 24px;
+}
+
+.stats-card {
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 15px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.stat-item.success .stat-value { color: #67c23a; }
+.stat-item.danger .stat-value { color: #f56c6c; }
+
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #303133;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 
 .filter-form {

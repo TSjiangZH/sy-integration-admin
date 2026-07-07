@@ -89,9 +89,7 @@ export const constantRoutes = [
     path: '/404',
     component: () => import('@/views/error-page/404'),
     hidden: true
-  },
-  // 添加：将404路由放在constantRoutes的最后
-  { path: '*', redirect: '/404', hidden: true }
+  }
 ]
 
 /**
@@ -106,6 +104,7 @@ import blogRoutes from './modules/blog'
 import tagRoutes from './modules/tag'
 import categoryRoutes from './modules/category'
 import permissionRoutes from './modules/permission'
+import monitorRoutes from './modules/monitor'
 
 export const asyncRoutes = [
   ...userRoutes,
@@ -115,9 +114,9 @@ export const asyncRoutes = [
   ...categoryRoutes,
   ...permissionRoutes,
   ...errorLogRoutes,
+  ...monitorRoutes,
 
-  // 删除：从asyncRoutes中移除404路由
-  // { path: '*', redirect: '/404', hidden: true }
+  { path: '*', redirect: '/404', hidden: true }
 ]
 
 const createRouter = () => new Router({

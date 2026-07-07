@@ -88,6 +88,11 @@
             {{ formatBlogDate(scope.row.createTime) }}
           </template>
         </el-table-column>
+           <el-table-column prop="updateTime" label="更新时间" width="180" align="center">
+          <template slot-scope="scope">
+            {{ formatBlogDate(scope.row.updateTime) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="enableComment" label="评论" width="80" align="center">
           <template slot-scope="scope">
             <el-switch

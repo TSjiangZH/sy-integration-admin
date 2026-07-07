@@ -6,8 +6,8 @@
       <el-table-column prop="createTime" label="时间" :formatter="formatDate" align="center" />
       <el-table-column prop="status" label="状态" align="center">
         <template slot-scope="scope">
-          <el-tag :type="scope.row.status === 1 ? 'success' : 'info'">
-            {{ scope.row.status === 1 ? '已发布' : '草稿' }}
+          <el-tag :type="getStatusType(scope.row.status)" size="mini">
+            {{ getStatusText(scope.row.status) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -41,6 +41,24 @@ export default {
       return cellValue && dayjs(cellValue).isValid() 
         ? dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss') 
         : ''
+    },
+    getStatusText(status) {
+      const statusMap = {
+        '0': '草稿',
+        '1': '已发布',
+        '2': '待审核',
+        '3': '未通过'
+      }
+      return statusMap[status] || '未知'
+    },
+    getStatusType(status) {
+      const typeMap = {
+        '0': 'info',
+        '1': 'success',
+        '2': 'warning',
+        '3': 'danger'
+      }
+      return typeMap[status] || 'info'
     },
     handleEdit(id) {
       this.$emit('edit', id)

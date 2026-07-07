@@ -60,9 +60,9 @@
             {{ formatBlogDate(scope.row.createTime) }}
           </template>
         </el-table-column>
-        <el-table-column prop="updateTime" label="审核时间" width="180" align="center">
+        <el-table-column prop="reviewTime" label="审核时间" width="180" align="center">
           <template slot-scope="scope">
-            {{ formatBlogDate(scope.row.updateTime) }}
+            {{ formatBlogDate(scope.row.reviewTime) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" align="center">
